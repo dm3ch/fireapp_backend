@@ -1,0 +1,5 @@
+* OpenAPI schema
+* Tests
+* Migrate to postgres from sqlite
+* Migrate to object storage instead local storage
+* Tune accuracy of storing coordinates in DB (and in rust code)

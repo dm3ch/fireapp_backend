@@ -8,6 +8,7 @@
 #[macro_use] extern crate rocket_contrib;
 
 mod task;
+mod report;
 #[cfg(test)] mod tests;
 
 use rocket::Rocket;
@@ -18,6 +19,7 @@ use rocket_contrib::{templates::Template, serve::StaticFiles};
 use diesel::SqliteConnection;
 
 use task::{Task, Todo};
+use report::Report;
 
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
 // containing a function named `run`. This allows the example to be run and
@@ -28,15 +30,15 @@ embed_migrations!();
 pub struct DbConn(SqliteConnection);
 
 #[derive(Debug, Serialize)]
-struct Context<'a, 'b>{ msg: Option<(&'a str, &'b str)>, tasks: Vec<Task> }
+struct Context<'a, 'b>{ msg: Option<(&'a str, &'b str)>, reports: Vec<Report> }
 
 impl<'a, 'b> Context<'a, 'b> {
     pub fn err(conn: &DbConn, msg: &'a str) -> Context<'static, 'a> {
-        Context{msg: Some(("error", msg)), tasks: Task::all(conn)}
+        Context{msg: Some(("error", msg)), reports: Report::all(conn)}
     }
 
     pub fn raw(conn: &DbConn, msg: Option<(&'a str, &'b str)>) -> Context<'a, 'b> {
-        Context{msg: msg, tasks: Task::all(conn)}
+        Context{msg: msg, reports: Report::all(conn)}
     }
 }
 
