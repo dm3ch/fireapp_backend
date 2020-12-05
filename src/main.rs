@@ -17,6 +17,7 @@ use rocket::request::{Form, FlashMessage};
 use rocket::response::{Flash, Redirect};
 use rocket_contrib::{templates::Template, serve::StaticFiles};
 use diesel::SqliteConnection;
+use rocket_contrib::json::Json;
 
 use task::{Task, Todo};
 use report::Report;
@@ -42,34 +43,16 @@ impl<'a, 'b> Context<'a, 'b> {
     }
 }
 
-#[post("/", data = "<todo_form>")]
-fn new(todo_form: Form<Todo>, conn: DbConn) -> Flash<Redirect> {
-    let todo = todo_form.into_inner();
-    if todo.description.is_empty() {
-        Flash::error(Redirect::to("/"), "Description cannot be empty.")
-    } else if Task::insert(todo, &conn) {
-        Flash::success(Redirect::to("/"), "Todo successfully added.")
-    } else {
-        Flash::error(Redirect::to("/"), "Whoops! The server failed.")
-    }
-}
-
-#[put("/<id>")]
-fn toggle(id: i32, conn: DbConn) -> Result<Redirect, Template> {
-    if Task::toggle_with_id(id, &conn) {
-        Ok(Redirect::to("/"))
-    } else {
-        Err(Template::render("index", &Context::err(&conn, "Couldn't toggle task.")))
-    }
-}
-
-#[delete("/<id>")]
-fn delete(id: i32, conn: DbConn) -> Result<Flash<Redirect>, Template> {
-    if Task::delete_with_id(id, &conn) {
-        Ok(Flash::success(Redirect::to("/"), "Todo was deleted."))
-    } else {
-        Err(Template::render("index", &Context::err(&conn, "Couldn't delete task.")))
-    }
+#[post("/", format = "application/json", data = "<report>")]
+fn new_report(report: Json<Report>, conn: DbConn) {
+    // let todo = todo_form.into_inner();
+    // if todo.description.is_empty() {
+    //     Flash::error(Redirect::to("/"), "Description cannot be empty.")
+    // } else if Task::insert(todo, &conn) {
+    //     Flash::success(Redirect::to("/"), "Todo successfully added.")
+    // } else {
+    //     Flash::error(Redirect::to("/"), "Whoops! The server failed.")
+    // }
 }
 
 #[get("/")]
@@ -97,7 +80,8 @@ fn rocket() -> Rocket {
         .attach(AdHoc::on_attach("Database Migrations", run_db_migrations))
         .mount("/", StaticFiles::from("static/"))
         .mount("/", routes![index])
-        .mount("/todo", routes![new, toggle, delete])
+        // .mount("/todo", routes![new, toggle, delete])
+        .mount("/api/report", routes![new_report])
         .attach(Template::fairing())
 }
 
