@@ -1,90 +1,27 @@
-#![feature(proc_macro_hygiene, decl_macro)]
-
-#[macro_use] extern crate rocket;
-#[macro_use] extern crate diesel;
-#[macro_use] extern crate diesel_migrations;
-#[macro_use] extern crate log;
-#[macro_use] extern crate serde_derive;
-#[macro_use] extern crate rocket_contrib;
-
-mod task;
-mod report;
-#[cfg(test)] mod tests;
-
-use rocket::Rocket;
-use rocket::fairing::AdHoc;
-use rocket::request::{Form, FlashMessage};
-use rocket::response::{Flash, Redirect};
-use rocket_contrib::{templates::Template, serve::StaticFiles};
-use diesel::SqliteConnection;
-use rocket_contrib::json::Json;
-
-use task::{Task, Todo};
-use report::Report;
-
-// This macro from `diesel_migrations` defines an `embedded_migrations` module
-// containing a function named `run`. This allows the example to be run and
-// tested without any outside setup of the database.
-embed_migrations!();
-
-#[database("sqlite_database")]
-pub struct DbConn(SqliteConnection);
-
-#[derive(Debug, Serialize)]
-struct Context<'a, 'b>{ msg: Option<(&'a str, &'b str)>, reports: Vec<Report> }
-
-impl<'a, 'b> Context<'a, 'b> {
-    pub fn err(conn: &DbConn, msg: &'a str) -> Context<'static, 'a> {
-        Context{msg: Some(("error", msg)), reports: Report::all(conn)}
-    }
-
-    pub fn raw(conn: &DbConn, msg: Option<(&'a str, &'b str)>) -> Context<'a, 'b> {
-        Context{msg: msg, reports: Report::all(conn)}
-    }
-}
-
-#[post("/", format = "application/json", data = "<report>")]
-fn new_report(report: Json<Report>, conn: DbConn) {
-    // let todo = todo_form.into_inner();
-    // if todo.description.is_empty() {
-    //     Flash::error(Redirect::to("/"), "Description cannot be empty.")
-    // } else if Task::insert(todo, &conn) {
-    //     Flash::success(Redirect::to("/"), "Todo successfully added.")
-    // } else {
-    //     Flash::error(Redirect::to("/"), "Whoops! The server failed.")
-    // }
-}
+use actix_web::{get, App, HttpResponse, HttpServer, Responder, middleware::Logger};
 
 #[get("/")]
-fn index(msg: Option<FlashMessage>, conn: DbConn) -> Template {
-    Template::render("index", &match msg {
-        Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
-        None => Context::raw(&conn, None),
+async fn hello() -> impl Responder {
+    HttpResponse::Ok().body("Hello world!")
+}
+
+#[get("/hello")]
+async fn hello1() -> impl Responder {
+    HttpResponse::Ok().body("Hello1 world!")
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    env_logger::init();
+
+    HttpServer::new(|| {
+        App::new()
+            .wrap(Logger::default())
+            .service(hello)
+            .service(hello1)
     })
-}
-
-fn run_db_migrations(rocket: Rocket) -> Result<Rocket, Rocket> {
-    let conn = DbConn::get_one(&rocket).expect("database connection");
-    match embedded_migrations::run(&*conn) {
-        Ok(()) => Ok(rocket),
-        Err(e) => {
-            error!("Failed to run database migrations: {:?}", e);
-            Err(rocket)
-        }
-    }
-}
-
-fn rocket() -> Rocket {
-    rocket::ignite()
-        .attach(DbConn::fairing())
-        .attach(AdHoc::on_attach("Database Migrations", run_db_migrations))
-        .mount("/", StaticFiles::from("static/"))
-        .mount("/", routes![index])
-        // .mount("/todo", routes![new, toggle, delete])
-        .mount("/api/report", routes![new_report])
-        .attach(Template::fairing())
-}
-
-fn main() {
-    rocket().launch();
+    .bind("127.0.0.1:8000")?
+    .run()
+    .await
 }
