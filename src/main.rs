@@ -12,20 +12,19 @@ type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 #[post("/api/report")]
 async fn add_report(    
     pool: web::Data<DbPool>,
-    form: web::Json<report::InsertableReport>,
+    form: web::Json<report::NewReport>,
 ) -> Result<HttpResponse, Error> {
-    // let conn = pool.get().expect("couldn't get db connection from pool");
+    let conn = pool.get().expect("couldn't get db connection from pool");
 
     // use web::block to offload blocking Diesel code without blocking server thread
-    // let user = web::block(move || report::insert_report(&form.name, &conn))
-    //     .await
-    //     .map_err(|e| {
-    //         eprintln!("{}", e);
-    //         HttpResponse::InternalServerError().finish()
-    //     })?;
+    let user = web::block(move || report::insert_report(&form, &conn))
+        .await
+        .map_err(|e| {
+            eprintln!("{}", e);
+            HttpResponse::InternalServerError().finish()
+        })?;
     
-    println!("{:?}", form);
-    Ok(HttpResponse::Ok().body("Hello world!"))
+    Ok(HttpResponse::Ok().json(user))
 }
 
 #[get("/api/report")]
